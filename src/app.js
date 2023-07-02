@@ -65,7 +65,7 @@ app.post("/participants", async(req, res) => {
 
         //insere o participante na collection participants no banco
         await db.collection("participants").insertOne(participant);
-        await db.collection("messages").insertOne(participant);
+        await db.collection("messages").insertOne(message);
 
         console.log(participant);
         //envia a resposta 
@@ -73,6 +73,15 @@ app.post("/participants", async(req, res) => {
 
     } catch (err) {
         //retorna o erro de qualquer await
+        return res.status(500).send(err.message);
+    }
+})
+
+app.get("/participants", async(req, res) => {
+    try{
+        const participants = await db.collection("participants").find().toArray();
+        res.send(participants);
+    } catch {
         return res.status(500).send(err.message);
     }
 })
