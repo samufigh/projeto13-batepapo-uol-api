@@ -63,7 +63,7 @@ app.post("/participants", async (req, res) => {
             return res.sendStatus(409);
         }
 
-        //insere o participante na collection participants no banco
+        //insere o participante e a mensagem de entrada na collection participants e messages do banco
         await db.collection("participants").insertOne(participant);
         await db.collection("messages").insertOne(message);
 
@@ -81,23 +81,23 @@ app.get("/participants", async (req, res) => {
     try {
         const participants = await db.collection("participants").find().toArray();
         res.send(participants);
-    } catch {
+    } catch (err) {
         return res.status(500).send(err.message);
     }
 })
 
 app.post("/messages", async (req, res) => {
     try {
-        const {to, text, type} = req.body;
+        const { to, text, type } = req.body;
         const { user } = req.headers;
 
         //valida a mensagem
         const schemaMessage = joi.object({
             to: joi.string().required(),
             text: joi.string().required(),
-            type: joi.valid('message', 'private_message')
+            type: joi.valid('message', 'private_message').required()
         });
-        const validation = schemaMessage.validate(req.body, {abortEarly: false});
+        const validation = schemaMessage.validate(req.body, { abortEarly: false });
 
         //retorna o array de erros  
         if (validation.error) {
@@ -118,17 +118,46 @@ app.post("/messages", async (req, res) => {
         const find = await db.collection("participants").findOne({
             name: user
         })
-        if(!find){
+        if (!find) {
             return res.sendStatus(422);
         }
 
         //insere a mensagem no banco
         await db.collection("messages").insertOne(message)
         res.sendStatus(201);
-    } catch {
+
+    } catch (err) {
+        //retorna o erro de qualquer await
         return res.status(500).send(err.message);
     }
 })
 
+app.get("/messages", async (req, res) => {
+    try {
+        const limit = req.query.limit;
+        const { user } = req.headers;
+        console.log(limit)
+        //busca as mensagens com essas condições
+        const messages = await db.collection("messages").find({
+            $or: [
+                { to: "Todos" },
+                { to: user },
+                { from: user }
+            ]
+        }).toArray();
+
+        //filtra pela quantidade de mensagens desejada
+        const newMessages = messages.slice(-limit);
+
+        if(limit <= 0 || limit === ""){
+            return res.sendStatus(402);
+        }
+        if(limit || !limit){
+            res.send(newMessages);
+        }
+    } catch (err) {
+        return serialize.status(500).send(err.message);
+    }
+})
 
 app.listen(5000, () => console.log("Rodando na porta 5000"));
