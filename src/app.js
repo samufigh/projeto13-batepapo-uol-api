@@ -1,5 +1,5 @@
 import express from "express";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import cors from "cors";
 import joi from "joi";
@@ -149,7 +149,7 @@ app.get("/messages", async (req, res) => {
         //filtra pela quantidade de mensagens desejada
         const newMessages = messages.slice(-limit);
 
-        if(limit <= 0 || limit === ""){
+        if(limit <= 0 || isNaN(limit)){
             return res.sendStatus(422);
         }
         if(limit || !limit){
@@ -187,5 +187,31 @@ app.post("/status", async(req, res) => {
         return res.status(500).send(err.message);
     }
 })
+
+setInterval(deleteUsers, 15000);
+
+async function deleteUsers() {
+
+    const participants = await db.collection("participants").find().toArray();
+    const time = (dayjs().format('HH:mm:ss'))
+    console.log(participants);
+
+
+    participants.forEach( async participant => {
+        console.log(participant.lastStatus)
+        console.log(Date.now());
+        if (Date.now() - participant.lastStatus > 10000) {
+            await db.collection("participants").deleteOne({ _id: new ObjectId(participant._id) })
+            await db.collection("messages").insertOne({
+                from: participant.name,
+                to: 'Todos',
+                text: 'sai da sala...',
+                type: 'status',
+                time: time
+            })
+        }
+    })
+}
+
 
 app.listen(5000, () => console.log("Rodando na porta 5000"));
