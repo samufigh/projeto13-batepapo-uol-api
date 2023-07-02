@@ -150,13 +150,41 @@ app.get("/messages", async (req, res) => {
         const newMessages = messages.slice(-limit);
 
         if(limit <= 0 || limit === ""){
-            return res.sendStatus(402);
+            return res.sendStatus(422);
         }
         if(limit || !limit){
             res.send(newMessages);
         }
     } catch (err) {
         return serialize.status(500).send(err.message);
+    }
+})
+
+app.post("/status", async(req, res) => {
+    try {
+        const { user } = req.headers;
+
+        //valida se o participante existe ou está no banco
+        if(!user){
+            return res.status(404).send('header não passado');
+        } 
+        const find = await db.collection("participants").findOne({
+            name: user
+        })
+        if(!find){
+            return res.status(404).send('não está no banco');
+        }
+
+        //atualiza o lastStatus do participante
+        let timestamp = {lastStatus: Date.now()};
+        await db.collection("participants").updateOne(
+            {name: user},
+            {$set: timestamp}
+            )
+        res.send(user);
+
+    } catch (err) {
+        return res.status(500).send(err.message);
     }
 })
 
