@@ -22,16 +22,16 @@ let db;
 
 //conecta com o banco
 mongoClient.connect()
-    .then( () => db = mongoClient.db())
-    .catch( (err) => console.log(err.message));
+    .then(() => db = mongoClient.db())
+    .catch((err) => console.log(err.message));
 
-app.post("/participants", async(req, res) => {
+app.post("/participants", async (req, res) => {
     try {
-        
+
         const { name } = req.body;
 
         //body da mensagem 
-        const message = { 
+        const message = {
             from: name,
             to: 'Todos',
             text: 'entra na sala...',
@@ -49,17 +49,17 @@ app.post("/participants", async(req, res) => {
             name: joi.string().required()
         });
 
-        const validation = schemaParticipant.validate( req.body, {abortEarly: false} );
+        const validation = schemaParticipant.validate(req.body, { abortEarly: false });
 
         //retorna o array de erros  
-        if(validation.error) {
+        if (validation.error) {
             const errors = validation.error.details.map(detail => detail.message);
             return res.status(422).send(errors);
         }
         const find = await db.collection("participants").findOne({
             name: name
         })
-        if(find){
+        if (find) {
             return res.sendStatus(409);
         }
 
@@ -77,8 +77,8 @@ app.post("/participants", async(req, res) => {
     }
 })
 
-app.get("/participants", async(req, res) => {
-    try{
+app.get("/participants", async (req, res) => {
+    try {
         const participants = await db.collection("participants").find().toArray();
         res.send(participants);
     } catch {
@@ -86,4 +86,49 @@ app.get("/participants", async(req, res) => {
     }
 })
 
-app.listen(5000, ()=> console.log("Rodando na porta 5000"));
+app.post("/messages", async (req, res) => {
+    try {
+        const {to, text, type} = req.body;
+        const { user } = req.headers;
+
+        //valida a mensagem
+        const schemaMessage = joi.object({
+            to: joi.string().required(),
+            text: joi.string().required(),
+            type: joi.valid('message', 'private_message')
+        });
+        const validation = schemaMessage.validate(req.body, {abortEarly: false});
+
+        //retorna o array de erros  
+        if (validation.error) {
+            const errors = validation.error.details.map(detail => detail.message);
+            return res.status(422).send(errors);
+        }
+
+        //body da mensagem
+        const message = {
+            from: user,
+            to: to,
+            text: text,
+            type: type,
+            time: time
+        }
+
+        //procura pelo usuario logado
+        const find = await db.collection("participants").findOne({
+            name: user
+        })
+        if(!find){
+            return res.sendStatus(422);
+        }
+
+        //insere a mensagem no banco
+        await db.collection("messages").insertOne(message)
+        res.sendStatus(201);
+    } catch {
+        return res.status(500).send(err.message);
+    }
+})
+
+
+app.listen(5000, () => console.log("Rodando na porta 5000"));
